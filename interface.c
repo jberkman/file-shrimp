@@ -44,10 +44,6 @@ create_shrimp (void)
   GtkWidget *dialog_action_area1;
   GtkWidget *close_button;
   GtkWidget *install_button;
-  GtkWidget *alignment2;
-  GtkWidget *hbox6;
-  GtkWidget *image9;
-  GtkWidget *label28;
 
   shrimp = gtk_dialog_new ();
   gtk_widget_set_name (shrimp, "shrimp");
@@ -148,37 +144,20 @@ create_shrimp (void)
   gtk_dialog_add_action_widget (GTK_DIALOG (shrimp), close_button, GTK_RESPONSE_CLOSE);
   GTK_WIDGET_SET_FLAGS (close_button, GTK_CAN_DEFAULT);
 
-  install_button = gtk_button_new ();
+  install_button = gtk_button_new_with_mnemonic (_("Install Image"));
   gtk_widget_set_name (install_button, "install_button");
   gtk_widget_show (install_button);
   gtk_dialog_add_action_widget (GTK_DIALOG (shrimp), install_button, 0);
   GTK_WIDGET_SET_FLAGS (install_button, GTK_CAN_DEFAULT);
-
-  alignment2 = gtk_alignment_new (0.5, 0.5, 0, 0);
-  gtk_widget_set_name (alignment2, "alignment2");
-  gtk_widget_show (alignment2);
-  gtk_container_add (GTK_CONTAINER (install_button), alignment2);
-
-  hbox6 = gtk_hbox_new (FALSE, 2);
-  gtk_widget_set_name (hbox6, "hbox6");
-  gtk_widget_show (hbox6);
-  gtk_container_add (GTK_CONTAINER (alignment2), hbox6);
-
-  image9 = create_pixmap (shrimp, "system-software-installer.png");
-  gtk_widget_set_name (image9, "image9");
-  gtk_widget_show (image9);
-  gtk_box_pack_start (GTK_BOX (hbox6), image9, FALSE, FALSE, 0);
-
-  label28 = gtk_label_new_with_mnemonic (_("Install Image"));
-  gtk_widget_set_name (label28, "label28");
-  gtk_widget_show (label28);
-  gtk_box_pack_start (GTK_BOX (hbox6), label28, FALSE, FALSE, 0);
 
   g_signal_connect ((gpointer) drives_combo, "changed",
                     G_CALLBACK (on_drives_combo_changed),
                     NULL);
   g_signal_connect ((gpointer) close_button, "clicked",
                     G_CALLBACK (gtk_main_quit),
+                    NULL);
+  g_signal_connect ((gpointer) install_button, "clicked",
+                    G_CALLBACK (on_install_button_clicked),
                     NULL);
 
   /* Store pointers to all widgets, for use by lookup_widget(). */
@@ -197,10 +176,6 @@ create_shrimp (void)
   GLADE_HOOKUP_OBJECT_NO_REF (shrimp, dialog_action_area1, "dialog_action_area1");
   GLADE_HOOKUP_OBJECT (shrimp, close_button, "close_button");
   GLADE_HOOKUP_OBJECT (shrimp, install_button, "install_button");
-  GLADE_HOOKUP_OBJECT (shrimp, alignment2, "alignment2");
-  GLADE_HOOKUP_OBJECT (shrimp, hbox6, "hbox6");
-  GLADE_HOOKUP_OBJECT (shrimp, image9, "image9");
-  GLADE_HOOKUP_OBJECT (shrimp, label28, "label28");
 
   return shrimp;
 }

@@ -16,3 +16,11 @@ on_drives_combo_changed                (GtkComboBox     *combobox,
 
 }
 
+
+void
+on_install_button_clicked              (GtkButton       *button,
+                                        gpointer         user_data)
+{
+
+}
+

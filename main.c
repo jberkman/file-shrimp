@@ -37,6 +37,7 @@ typedef struct {
 } ShrimpDrive;
 
 static GtkListStore *target_drives = NULL;
+static gboolean disable_install = FALSE;
 
 #if 1
 static LibHalStoragePolicy *policy = NULL;
@@ -260,8 +261,10 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
 #endif
 
     vols = libhal_drive_find_all_volumes (hal_ctx, drive, &n_vols);
+#if 0
     printf ("%s has %d volumes\n", udi, n_vols);
-    
+#endif
+
     for (j = 0; j < n_vols; j++) {
         vol = libhal_volume_from_udi (hal_ctx, vols[j]);
 
@@ -269,7 +272,9 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
             g_string_append (partitions, ", ");
         }
         tmp = libhal_volume_policy_compute_size_as_string (vol);
+#if 0
         g_print ("partition %d: %s\n", j, tmp);
+#endif
         g_string_append (partitions, tmp);
         g_free (tmp);
 
@@ -360,7 +365,9 @@ device_removed_foreach_cb (GtkTreeModel *model,
         return FALSE;
     }
     gtk_list_store_remove (GTK_LIST_STORE (model), iter);
+#if 0
     g_print ("free: %p\n", drive);
+#endif
     return TRUE;
 }
 
@@ -473,6 +480,48 @@ on_drives_combo_changed                (GtkComboBox     *combobox,
 
     w = lookup_widget (shrimp, "target_partitions");
     gtk_label_set_text (GTK_LABEL (w), drive && drive->partitions ? drive->partitions : "none");
+
+    w = lookup_widget (shrimp, "install_button");
+    gtk_widget_set_sensitive (w, drive && !disable_install);
+}
+
+void
+on_install_button_clicked              (GtkButton       *button,
+                                        gpointer         user_data)
+{
+    GtkWidget *shrimp;
+    GtkWidget *w;
+    GtkTreeIter iter;
+    char *label;
+
+    shrimp = gtk_widget_get_toplevel (GTK_WIDGET (button));
+    w = lookup_widget (shrimp, "drives_combo");
+    if (!gtk_combo_box_get_active_iter (GTK_COMBO_BOX (w), &iter)) {
+        return;
+    }
+
+    gtk_tree_model_get (gtk_combo_box_get_model (GTK_COMBO_BOX (w)), &iter,
+                        COL_LABEL, &label, -1);
+
+    w = gtk_message_dialog_new_with_markup (
+        GTK_WINDOW (shrimp),
+        GTK_DIALOG_MODAL,
+        GTK_MESSAGE_WARNING,
+        GTK_BUTTONS_NONE,
+        "All data on <b>%s</b> will be <b>erased</b>.\n\n"
+        "Do you wish to continue?",
+        label);
+
+    gtk_dialog_add_buttons (GTK_DIALOG (w),
+                            GTK_STOCK_CANCEL, GTK_RESPONSE_REJECT,
+                            "Erase and Install Image", GTK_RESPONSE_ACCEPT,
+                            NULL);
+
+    if (GTK_RESPONSE_ACCEPT != gtk_dialog_run (GTK_DIALOG (w))) {
+        gtk_widget_destroy (w);
+        return;
+    }
+        
 }
 
 int
@@ -508,7 +557,7 @@ main (int argc, char *argv[])
    */
   shrimp = create_shrimp ();
 
-  root_version = get_mount_version ("/", NULL);
+  root_version = get_mount_version ("/read-only", NULL);
   if (root_version) {
       w = lookup_widget (shrimp, "current_version");
       gtk_label_set_text (GTK_LABEL (w), root_version);
@@ -517,6 +566,7 @@ main (int argc, char *argv[])
       gtk_label_set_markup (GTK_LABEL (w), "<b>No version of SLE Thin Client found</b>");
       w = lookup_widget (shrimp, "install_button");
       gtk_widget_set_sensitive (w, FALSE);
+      disable_install = TRUE;
   }
 
   w = lookup_widget (shrimp, "drives_combo");
