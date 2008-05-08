@@ -278,9 +278,12 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
         g_string_append (partitions, tmp);
         g_free (tmp);
 
-        if (libhal_volume_is_mounted (vol) ||
-            libhal_volume_should_ignore (vol)) {
-            goto next_vol;
+        if (libhal_volume_is_mounted (vol)) {
+            libhal_free_string_array (vols);
+            g_string_free (partitions, TRUE);
+            g_free (ret->udi);
+            g_free (ret);
+            goto next_drive;
         }
         
 #ifdef HAS_GET_VOLUME_VERSION
