@@ -282,7 +282,9 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
         if (libhal_volume_is_mounted (vol) &&
             strncmp (libhal_volume_get_mount_point (vol),
                      "/media/", strlen ("/media/"))) {
+#if 0
             g_warning ("Ignoring %s %s", udi, vols[j]);
+#endif
             libhal_free_string_array (vols);
             g_string_free (partitions, TRUE);
             g_free (ret->udi);
@@ -327,36 +329,21 @@ next_drive:
     return ret;
 }
 
-typedef struct {
-    LibHalContext *ctx;
-    char *udi;
-} AddedData;
-
-static gboolean
-device_added_idle_cb (gpointer data)
-{
-    AddedData *ad = data;
-
-    add_storage_udi (ad->ctx, ad->udi, NULL);
-
-    g_free (ad->udi);
-    g_free (ad);
-
-    return FALSE;
-}
-
 static void
 device_added_cb (LibHalContext *ctx,
                  const char    *udi)
 {
-    AddedData *ad;
+    GtkWidget *shrimp;
+    GtkWidget *w;
+
     if (!libhal_device_query_capability (ctx, udi, "storage", NULL)) {
         return;
     }
-    ad = g_new (AddedData, 1);
-    ad->ctx = ctx;
-    ad->udi = g_strdup (udi);
-    g_idle_add (device_added_idle_cb, ad);
+    add_storage_udi (ctx, udi, NULL);
+
+    shrimp = libhal_ctx_get_user_data (ctx);
+    w = lookup_widget (shrimp, "drives_combo");
+    on_drives_combo_changed (GTK_COMBO_BOX (w), NULL);
 }
 
 static gboolean
@@ -507,7 +494,7 @@ spawn_script (GtkWidget *shrimp, const char *device)
     GPid pid;
 
     char *argv[5] = { "gnomesu", "--", PACKAGE_LIBEXEC_DIR"/file-shrimp.sh", NULL, NULL };
-    argv[3] = device;
+    argv[3] = (char *)device;
 
     if (!gdk_spawn_on_screen (gtk_window_get_screen (GTK_WINDOW (shrimp)),
                               "/", argv, NULL,
@@ -622,6 +609,8 @@ main (int argc, char *argv[])
   gtk_cell_layout_add_attribute (GTK_CELL_LAYOUT (w), col, "text", COL_LABEL);
 
   gtk_combo_box_set_model (GTK_COMBO_BOX (w), GTK_TREE_MODEL (target_drives));
+
+  on_drives_combo_changed (GTK_COMBO_BOX (w), NULL);
 
   gtk_widget_show (shrimp);
 
