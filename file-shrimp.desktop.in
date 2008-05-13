@@ -9,5 +9,5 @@ Terminal=false
 TryExec=file-shrimp
 Type=Application
 _Comment=Clone a machine to another storage device
-_GenericName=Thin Client Imager
+_GenericName=
 _Name=Thin Client Imager
