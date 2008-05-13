@@ -1,17 +1,12 @@
 #!/bin/bash
 
-target=$1
-
-if [ -z "$target" ]; then
-    echo >&2 "No target device specified."
-    exit 1
-fi
-
-if [ ! -b "$target" ]; then
-    echo >&2 "$target does not appear to be a block device."
-    exit 1
-fi
-    
+function errorDialog ()
+{
+    echo "# Error: $1"
+    echo "100"
+    echo >&2 "${0##*/}: $1"
+    zenity --error --title "Thin Client Imager" --text "$1"
+}
 
 function getDeviceFromMount ()
 {
@@ -47,27 +42,41 @@ function getDeviceMB ()
 function partitionDevice ()
 {
     /sbin/sfdisk "$1" -uM <<EOF
-,$2,L
+1,$2,L
 ,,L
 EOF
 }
 
+target=$1
+
+(
+echo "# Initializing..."
+if [ -z "$target" ]; then
+    errorDialog "No target device specified."
+    exit 1
+fi
+
+if [ ! -b "$target" ]; then
+    errorDialog "$target does not appear to be a block device."
+    exit 1
+fi
+
 # /read-only stuff
 roudi=$(getDeviceFromMount /read-only)
 if [ -z "$roudi" ] ; then
-    echo >&2 "Could not get Hal name for /read-only"
+    errorDialog "Could not get Hal name for /read-only"
     exit 1
 fi
 
 rodev=$(getDevFile "$roudi")
 if [ -z "$rodev" ] ; then
-    echo >&2 "Could not get device for /read-only"
+    errorDialog "Could not get device for /read-only"
     exit 1
 fi
 
 rodrive=$(getStorageDevice "$roudi")
 if [ -z "$roudi" ] ; then
-    echo >&2 "Could not get drive for /read-only"
+    errorDialog "Could not get drive for /read-only"
     exit 1
 fi
 
@@ -75,66 +84,114 @@ fi
 # /read-write stuff
 rwudi=$(getDeviceFromMount /read-write)
 if [ -z "$rwudi" ] ; then
-    echo >&2 "Could not get Hal name for /read-write"
+    errorDialog "Could not get Hal name for /read-write"
     exit 1
 fi
 
 rwdev=$(getDevFile "$rwudi")
 if [ -z "$rwdev" ] ; then
-    echo >&2 "Could not get device for /read-write"
+    errorDialog "Could not get device for /read-write"
     exit 1
 fi
 
 rwdrive=$(getStorageDevice "$rwudi")
 if [ -z "$rwdrive" ] ; then
-    echo >&2 "Could not get drive for /read-write"
+    errorDialog "Could not get drive for /read-write"
     exit 1
 fi
 
 
 
 if [ "$rodrive" != "$rwdrive" ] ; then
-    echo >&2 "The read-only and read-write partitions seem to be on different devices."
+    errorDialog "The read-only and read-write partitions seem to be on different devices."
     exit 1
 fi
 
 
-
-if ! partitionDevice "$target" $(getDeviceMB "$roudi") ; then
-    echo >&2 "Partitioning target failed."
+targetudi=$(getDeviceFromDevFile "$target")
+if [ -z "$targetudi" ] ; then
+    errorDialog "Could not get Hal name for target"
     exit 1
 fi
 
-if ! dd if="$rodev" of="$target"1 bs=1M ; then
-    echo >&2 "Copying read-only partition failed."
+for vol in $(hal-find-by-property --key block.storage_device --string "$targetudi") ; do
+    if [ "$vol" != "$targetudi" ] ; then
+	tmpmnt=$(getMount "$vol")
+	if [ "$tmpmnt" ] ; then
+	    if ! umount "$tmpmnt" ; then
+		errorDialog "Could not unmount $tmpmnt"
+		exit 1
+	    fi
+	fi
+    fi
+done
+
+echo "# Partitioning target..."
+if ! partitionDevice "$target" $(getDeviceMB "$roudi") >/dev/null ; then
+    errorDialog "Partitioning target failed."
     exit 1
 fi
+echo "3"
 
+echo "# Copying system data..."
+if ! dd if="$rodev" of="$target"1 bs=1M >/dev/null ; then
+    errorDialog "Copying read-only partition failed."
+    exit 1
+fi
+echo "57"
+
+echo "# Formatting configuration partition..."
 # gnome-volume-manager will sometimes mount this against our will
 umount "$target"2
-if ! /sbin/mkfs -t ext2 "$target"2 ; then
-    echo >&2 "Could not create read-write partition."
+if ! /sbin/mkfs -t ext2 "$target"2 >/dev/null ; then
+    errorDialog "Could not create read-write partition."
     exit 1
 fi
 
 mnt=$(mktemp -d /mnt/file-shrimp.XXXXXX)
 if [ $? != 0 ]; then
-    echo >&2 "Could not create temporary directory."
+    errorDialog "Could not create temporary directory."
     exit 1
 fi
 
 if ! mount "$target"2 "$mnt" ; then
     rmdir "$mnt"
-    echo >&2 "Could not mount read-write partition."
+    errorDialog "Could not mount read-write partition."
+    exit 1
 fi
+echo "60"
 
-if ! cp -avx /read-write/* "$mnt/" ; then
+echo "# Copying configuration data..."
+if ! cp -ax /read-write/* "$mnt/" ; then
     umount "$mnt"
     rmdir "$mnt"
-    echo >&2 "Could not copy read-write partition."
+    errorDialog "Could not copy read-write partition."
+    exit 1
 fi
+echo "97"
 
+echo "# Installing boot loader..."
+echo '(hd0) '"$target" > "$mnt"/boot/grub/device.map
+if ! /usr/sbin/grub-install --root-directory="$mnt" "$target" >/dev/null ; then
+    umount "$mnt"
+    rmdir "$mnt"
+    errorDialog "Could not install GRUB on $target"
+    exit 1
+fi
+echo "98"
+
+echo "# Cleaning up..."
 umount "$mnt"
 rmdir "$mnt"
+echo "99"
+
+echo "# Finished installing image to $target..."
+echo "100"
+) | 
+zenity --progress \
+    --title="Thin Client Image Tool" \
+    --auto-close \
+    --text="" \
+    --percentage=0
 
 exit 0
