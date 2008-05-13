@@ -34,6 +34,7 @@ typedef struct {
     char *udi;
     char *version;
     char *partitions;
+    char *device;
 } ShrimpDrive;
 
 static GtkListStore *target_drives = NULL;
@@ -278,7 +279,10 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
         g_string_append (partitions, tmp);
         g_free (tmp);
 
-        if (libhal_volume_is_mounted (vol)) {
+        if (libhal_volume_is_mounted (vol) &&
+            strncmp (libhal_volume_get_mount_point (vol),
+                     "/media/", strlen ("/media/"))) {
+            g_warning ("Ignoring %s %s", udi, vols[j]);
             libhal_free_string_array (vols);
             g_string_free (partitions, TRUE);
             g_free (ret->udi);
@@ -303,6 +307,7 @@ add_storage_udi (LibHalContext *hal_ctx, const char *udi, DBusError *error)
     }
     
     ret->partitions = g_string_free (partitions, FALSE);
+    ret->device = g_strdup (libhal_drive_get_device_file (drive));
 
 next_vols:
     gtk_list_store_append (target_drives, &iter);
@@ -488,6 +493,34 @@ on_drives_combo_changed                (GtkComboBox     *combobox,
     gtk_widget_set_sensitive (w, drive && !disable_install);
 }
 
+static void
+script_finished (GPid pid, gint status, gpointer data)
+{
+    g_spawn_close_pid (pid);
+    gtk_widget_set_sensitive (data, TRUE);
+}
+
+static void
+spawn_script (GtkWidget *shrimp, const char *device)
+{
+    GError *error = NULL;
+    GPid pid;
+
+    char *argv[5] = { "gnomesu", "--", PACKAGE_LIBEXEC_DIR"/file-shrimp.sh", NULL, NULL };
+    argv[3] = device;
+
+    if (!gdk_spawn_on_screen (gtk_window_get_screen (GTK_WINDOW (shrimp)),
+                              "/", argv, NULL,
+                              G_SPAWN_DO_NOT_REAP_CHILD | G_SPAWN_SEARCH_PATH,
+                              NULL, NULL, &pid, &error)) {
+        fprintf (stderr, "Error running file-shrimp.sh: %s\n", error->message);
+        g_error_free (error);
+        return;
+    }
+
+    g_child_watch_add (pid, script_finished, shrimp);
+}
+
 void
 on_install_button_clicked              (GtkButton       *button,
                                         gpointer         user_data)
@@ -496,6 +529,7 @@ on_install_button_clicked              (GtkButton       *button,
     GtkWidget *w;
     GtkTreeIter iter;
     char *label;
+    ShrimpDrive *drive;
 
     shrimp = gtk_widget_get_toplevel (GTK_WIDGET (button));
     w = lookup_widget (shrimp, "drives_combo");
@@ -504,7 +538,9 @@ on_install_button_clicked              (GtkButton       *button,
     }
 
     gtk_tree_model_get (gtk_combo_box_get_model (GTK_COMBO_BOX (w)), &iter,
-                        COL_LABEL, &label, -1);
+                        COL_LABEL, &label,
+                        COL_DRIVE, &drive,
+                        -1);
 
     w = gtk_message_dialog_new_with_markup (
         GTK_WINDOW (shrimp),
@@ -524,7 +560,9 @@ on_install_button_clicked              (GtkButton       *button,
         gtk_widget_destroy (w);
         return;
     }
-        
+    gtk_widget_destroy (w);
+    gtk_widget_set_sensitive (shrimp, FALSE);
+    spawn_script (shrimp, drive->device);
 }
 
 int
