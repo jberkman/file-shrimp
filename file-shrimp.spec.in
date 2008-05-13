@@ -1,0 +1,40 @@
+Summary: Thin Client Imager
+Name: file-shrimp
+Version: @VERSION@
+Release: 1
+License: GPL
+Group: System/Tools
+URL: http://code.google.com/p/loolixbodes/wiki/FileShrimp
+Source0: %{name}-%{version}.tar.gz
+BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
+
+%description
+Thin Client Imager allows you to clone thin client machines using
+removable storage such as a USB memory stick.
+
+%prep
+%setup -q
+
+%build
+%configure
+make
+
+%install
+rm -rf $RPM_BUILD_ROOT
+%makeinstall
+
+%clean
+rm -rf $RPM_BUILD_ROOT
+
+
+%files
+%defattr(-,root,root,-)
+%doc
+%{_bindir}/file-shrimp
+%{_datadir}/applications/file-shrimp.desktop
+%{_libexecdir}/file-shrimp/file-shrimp.sh
+
+%changelog
+* Mon Nov  5 2007 jacob berkman <jberkman@novell.com>
+- Initial build.
+

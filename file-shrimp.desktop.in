@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Categories=GNOME;GTK;System;Settings;
+Exec=file-shrimp
+Icon=system-software-installer
+OnlyShowIn=GNOME;
+StartupNotify=true
+Terminal=false
+TryExec=file-shrimp
+Type=Application
+_Comment=Configure network connections
+_GenericName=Network
+_Name=Network
