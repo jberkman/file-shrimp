@@ -2,7 +2,7 @@
 Encoding=UTF-8
 Categories=GNOME;GTK;System;Settings;
 Exec=file-shrimp
-Icon=system-software-installer
+Icon=computer
 OnlyShowIn=GNOME;
 StartupNotify=true
 Terminal=false
