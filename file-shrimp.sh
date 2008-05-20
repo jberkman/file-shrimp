@@ -168,6 +168,16 @@ if ! cp -ax /read-write/* "$mnt/" ; then
     errorDialog "Could not copy read-write partition."
     exit 1
 fi
+echo "96"
+
+echo "# Saving home directory..."
+rm -rf "$mnt/etc/userlevel/home"
+if ! cp -ax "$HOME" "$mnt/etc/userlevel/home" ; then
+    umount "$mnt"
+    rmdir "$mnt"
+    errorDialog "Could not save home directory."
+    exit 1
+fi
 echo "97"
 
 echo "# Installing boot loader..."
