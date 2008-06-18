@@ -33,6 +33,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_bindir}/file-shrimp
 %{_datadir}/applications/file-shrimp.desktop
 %{_libexecdir}/file-shrimp/file-shrimp.sh
+%{_datadir}/locale/*/LC_MESSAGES/file-shrimp.mo
 
 %changelog
 * Mon Nov  5 2007 jacob berkman <jberkman@novell.com>
