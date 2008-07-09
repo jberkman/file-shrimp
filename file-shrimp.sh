@@ -47,14 +47,9 @@ function getDeviceMB ()
 
 function partitionDevice ()
 {
-    # we need the start pos for the 2nd drive because we are leaving
-    # space for grub at the beginning of the device, or something.  if
-    # we don't specify the start, sfdisk will start at 0 and make us a
-    # 1M device.  we add 2 to start after the first device (which
-    # started at 1).
     /sbin/sfdisk "$1" -uM >&2 <<EOF
-1,$2,L
-$(($2 + 2)),,L
+,$2,L
+,,L
 EOF
 }
 
